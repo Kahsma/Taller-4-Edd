@@ -4,49 +4,50 @@
 #include <string>
 
 // -------------------------------------------------------------------------
-void QuadTree(
+void DecodeQuadTree(
     unsigned short **image,
+    std::istream &in,
     unsigned int w0, unsigned int h0,
-    unsigned int w1, unsigned int h1,
-    std::ostream &out)
+    unsigned int w1, unsigned int h1)
 {
-  unsigned short init_val = image[h0][w0];
-  bool same_val = true;
-  for (unsigned int w = w0; w < w1 && same_val; ++w)
-    for (unsigned int h = h0; h < h1 && same_val; ++h)
-      same_val &= (image[h][w] == init_val);
-
-  if (!same_val)
+  char val;
+  in >> val;
+  if (val != '2')
+  {
+    for (unsigned int h = h0; h < h1; ++h)
+      for (unsigned int w = w0; w < w1; ++w)
+        image[h][w] = (unsigned short)(val - '0');
+  }
+  else
   {
     unsigned int hw = (w1 + w0) >> 1;
     unsigned int hh = (h1 + h0) >> 1;
-    out << "2";
-    QuadTree(image, w0, h0, hw, hh, out);
-    QuadTree(image, hw, h0, w1, hh, out);
-    QuadTree(image, hw, hh, w1, h1, out);
-    QuadTree(image, w0, hh, hw, h1, out);
-  }
-  else
-    out << init_val;
+
+    DecodeQuadTree(image, in, w0, h0, hw, hh);
+    DecodeQuadTree(image, in, hw, h0, w1, hh);
+    DecodeQuadTree(image, in, hw, hh, w1, h1);
+    DecodeQuadTree(image, in, w0, hh, hw, h1);
+
+  } // fi
 }
 
 // -------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  if (argc < 2)
+  if (argc < 3)
   {
     std::cerr
         << "Usage: "
-        << argv[0] << " input_pgm > output_qt"
+        << argv[0] << " <input .qt file> <name of the .pgm that wil be created>"
         << std::endl;
     return (1);
 
   } // fi
 
   // Read PGM image as a buffer
-  std::ifstream input_pgm_file(
+  std::ifstream input_qt_file(
       argv[1], std::ios::in | std::ios::binary | std::ios::ate);
-  if (!(input_pgm_file.is_open()))
+  if (!(input_qt_file.is_open()))
   {
     std::cerr
         << "Error opening file: \"" << argv[1] << "\""
@@ -54,40 +55,48 @@ int main(int argc, char *argv[])
     return (1);
 
   } // fi
-  std::streampos size = input_pgm_file.tellg();
+  std::streampos size = input_qt_file.tellg();
   char *buffer = new char[size];
-  input_pgm_file.seekg(0, std::ios::beg);
-  input_pgm_file.read(buffer, size);
-  input_pgm_file.close();
+  input_qt_file.seekg(0, std::ios::beg);
+  input_qt_file.read(buffer, size);
+  input_qt_file.close();
 
   // Read PGM data
-  std::stringstream input_pgm_stream(buffer);
-  char line[1024];
-  input_pgm_stream.getline(line, 1024); // Magic number
-  input_pgm_stream.getline(line, 1024); // Comment
+  std::stringstream input_qt_stream(buffer);
 
+  // Width and height
   unsigned short W, H;
-  input_pgm_stream >> W >> H;
+  input_qt_stream >> W >> H;
 
+  // Image
   unsigned short **image = new unsigned short *[H];
   for (unsigned int h = 0; h < H; ++h)
     image[h] = new unsigned short[W];
-  for (unsigned int h = 0; h < H; ++h)
-    for (unsigned int w = 0; w < W; ++w)
-      input_pgm_stream >> image[h][w];
+
+  DecodeQuadTree(image, input_qt_stream, 0, 0, W, H);
+
   delete buffer;
 
-  // // Print quadtree
-  // std::cout << W << " " << H << std::endl;
-  // QuadTree(image, 0, 0, W, H, std::cout);
-  // delete[] image;
+  std::ofstream output_pgm_file(argv[2]);
+  if (!(output_pgm_file.is_open()))
+  {
+    std::cerr << "Error opening output file: \"salida.pgm\"" << std::endl;
+    return (1);
+  }
+  output_pgm_file << "P1" << std::endl;
+  output_pgm_file << "# Creator: quadtree-to-image" << std::endl;
+  output_pgm_file << W << " " << H << std::endl;
+  for (unsigned int h = 0; h < H; ++h)
+  {
+    for (unsigned int w = 0; w < W; ++w)
+      output_pgm_file << image[h][w] << " ";
+    output_pgm_file << std::endl;
 
-  std::ofstream output_file("salida.qt");
-  output_file << W << " " << H << std::endl;
-  QuadTree(image, 0, 0, W, H, output_file);
-  output_file.close();
+  } // rof
+  output_pgm_file.close();
+  delete[] image;
 
   return (0);
 }
 
-// eof - encode_pgm.cxx
+// eof - decode_pgm.cxx

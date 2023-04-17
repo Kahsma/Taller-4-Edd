@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
   {
     std::cerr
         << "Usage: "
-        << argv[0] << " input_pgm > output_qt"
+        << argv[0] << " <.pgm file that is going to be encoded> "
         << std::endl;
     return (1);
 
@@ -76,11 +76,6 @@ int main(int argc, char *argv[])
     for (unsigned int w = 0; w < W; ++w)
       input_pgm_stream >> image[h][w];
   delete buffer;
-
-  // // Print quadtree
-  // std::cout << W << " " << H << std::endl;
-  // QuadTree(image, 0, 0, W, H, std::cout);
-  // delete[] image;
 
   std::ofstream output_file("salida.qt");
   output_file << W << " " << H << std::endl;
